@@ -1,5 +1,6 @@
 from cmu_graphics import *
 import random
+import math
 
 # logistics
     # start with initial screen
@@ -140,6 +141,7 @@ def onAppStart(app):
     app.eventList = []
     app.drawMenu = False
     app.drawPopUpWindow = False
+    app.drawAutoScheduleWindow = False
     # draw month schedule helper
     app.monthRows = 5
     app.monthCols = 7
@@ -148,6 +150,13 @@ def onAppStart(app):
     app.monthBoardWidth = app.monthWidth
     app.monthBoardHeight = app.monthHeight
     app.monthCellBorderWidth =app.width/400
+    # draw week schedule internal grid
+    app.internalRows = 40
+    app.internalCols = 7
+    app.internalBoardLeft = app.scheduleLeft
+    app.internalBoardTop = app.scheduleTop
+    app.internalBoardWidth = app.scheduleWidth
+    app.internalBoardHeight = app.scheduleHeight
     # change screen helper
     app.drawInitialScreen = True
     app.drawSchedule = False
@@ -202,15 +211,21 @@ def onAppStart(app):
                 app.width/6, app.height/20, 'lightskyblue', 15, True, True,
                 setTimerScreen)
     ]
-    app.createButton = Buttons('Create', app.width-app.width/8, app.height/8,
-                                app.width/10, app.height/16, 'lightskyblue', 30,
+    app.createButton = Buttons('Create', app.width-app.width/8, app.height/16,
+                                app.width/10, app.height/20, 'lightskyblue', 30,
                                 True, True, createButtonFunction)
     app.closeCreateButton = Buttons('X', 3*app.width/4-app.width/64, 
                                     app.height/4+app.height/64,
                                     app.width/32, app.height/32, 'slateblue', 30,
                                     True, False, closeCreateButton)
-    app.scheduleButtons = scheduleButtons
-
+    app.autoScheduleButton = Buttons('Auto-Schedule',app.width-app.width/8,
+                                     app.height/8, app.width/5, app.height/20,
+                                     'lightskyblue', 30, True, True, 
+                                     autoScheduleFunction)
+    app.closeAutoSchedule = Buttons('X',2*app.width/3-app.width/64,
+                                    app.height/3+app.height/70, app.width/32,
+                                    app.height/32, 'slateblue', 30, True, False,
+                                    closeAutoScheduleWindow)
 
 # Initial Screen
 def initialScreen_redrawAll(app):
@@ -295,6 +310,11 @@ def weekSchedule_redrawAll(app):
     drawCreateButton(app)
     if app.drawPopUpWindow == True:
         drawPopUpWindow(app)
+    drawAutoScheduleButton(app)
+    if app.drawAutoScheduleWindow == True:
+        drawAutoScheduleWindow(app)
+    # draw internal grid
+    drawInternalBoard(app)
 
 def weekSchedule_onMousePress(app, mouseX, mouseY):
     app.menuButton.checkForPress(app, mouseX, mouseY)
@@ -306,34 +326,23 @@ def weekSchedule_onMousePress(app, mouseX, mouseY):
     app.createButton.checkForPress(app, mouseX, mouseY)
     if app.drawPopUpWindow == True:
         app.closeCreateButton.checkForPress(app, mouseX, mouseY)
-
-# draw pop up window for creating an event
-def drawPopUpWindow(app):
-    # background panel
-    drawRect(app.width/2, app.height/2, app.width/2, app.height/2,
-             fill='mediumpurple', borderWidth=3, border='slateblue',
-             align='center')
-    drawRect(3*app.width/4-app.width/64, app.height/4+app.height/64,
-             app.width/32, app.height/32, fill='slateblue', align='center')
-    drawLabel('X', 3*app.width/4-app.width/64, app.height/4+app.height/64,
-              size=10)
+    app.autoScheduleButton.checkForPress(app, mouseX, mouseY)
+    if app.drawAutoScheduleWindow == True:
+        app.closeAutoSchedule.checkForPress(app, mouseX, mouseY)
     
-    # title
-    # date
-    # day
-    # start time
-    # end time
-    # color
-    L = ['orangered', 'sandybrown', 'lightgreen', 'paleturquoise', 'lightpink']
-    #for i in range(5):
-        #drawCircle(165+i*30, 275, 10, fill=L[i])
+    # getting cell position
+    selectedCell = getCell(app, mouseX, mouseY)
+    if selectedCell != None:
+        app.selectedCell = selectedCell
+        if selectedCell == None: # not a cell on the board, reset app.selection
+        app.selection = None
+    else: # cell on board, check if it is already has a move
+        row, col = selectedCell
+        if app.board[row][col] == None: # empty
+            app.selection = selectedCell
+        else:
+            app.selection = None
 
-def drawEvents(app):
-    pass
-
-# draw the 'Create' button
-def drawCreateButton(app):
-    app.createButton.draw()
 
 # draw menu (change gird)
 def drawMenu(app):
@@ -346,6 +355,50 @@ def drawMenu(app):
 
 def drawMenuButton(app):
     app.menuButton.draw()
+
+# draw the 'Create' button
+def drawCreateButton(app):
+    app.createButton.draw()
+
+# draw pop up window for creating an event
+def drawPopUpWindow(app):
+    # background panel
+    drawRect(app.width/2, app.height/2, app.width/2, app.height/2,
+             fill='mediumpurple', borderWidth=3, border='slateblue',
+             align='center')
+    drawRect(3*app.width/4-app.width/64, app.height/4+app.height/64,
+             app.width/32, app.height/32, fill='slateblue', align='center')
+    app.closeCreateButton.draw()
+    
+    # title
+    # date
+    # day
+    # start time
+    # end time
+    # color
+    L = ['orangered', 'sandybrown', 'lightgreen', 'paleturquoise', 'lightpink']
+    #for i in range(5):
+        #drawCircle(165+i*30, 275, 10, fill=L[i])
+
+# draw the 'Auto-Schedule' Button
+def drawAutoScheduleButton(app):
+    app.autoScheduleButton.draw()
+
+# draw pop up window for auto schedule
+def drawAutoScheduleWindow(app):
+    # background panel
+    drawRect(app.width/2, app.height/2, app.width/3, app.height/3, 
+             fill='mediumpurple', borderWidth=3, border='slateblue',
+             align='center')
+    app.closeAutoSchedule.draw()
+    # timespan
+    # week number
+    # color
+
+def drawEvents(app):
+    pass   
+
+
 
 # To-Do List Screen
 def toDoList_redrawAll(app):
@@ -434,7 +487,7 @@ def drawBoard(app):
     for row in range(app.rows):
         for col in range(app.cols):
             drawCell(app, app.boardLeft, app.boardTop, app.boardWidth, 
-                     app.boardHeight, app.rows, app.cols, row, col)
+                     app.boardHeight, app.rows, app.cols, row, col, 20)
 
 def drawBoardBorder(app):
   # draw the board outline (with double-thickness):
@@ -447,16 +500,23 @@ def drawMonthBoard(app):
         for col in range(app.monthCols):
             drawMonthCellWithDate(app, app.monthBoardLeft, app.monthBoardTop, 
                      app.monthBoardWidth, app.monthBoardHeight, app.monthRows,
-                     app.monthCols, row, col)
+                     app.monthCols, row, col, 20)
 
 def drawMonthBoardBorder(app):
     drawRect(app.monthBoardLeft, app.monthBoardTop, app.monthBoardWidth,
              app.monthBoardHeight, fill=None, border='black', 
              borderWidth=2*app.monthCellBorderWidth, opacity=20)
 
+def drawInternalBoard(app):
+    for row in range(app.internalRows):
+        for col in range(app.internalCols):
+            drawCell(app, app.internalBoardLeft, app.internalBoardTop, 
+                     app.internalBoardWidth, app.internalBoardHeight, 
+                     app.internalRows, app.internalCols, row, col, 100)
+
 # helper of helper functions
 def drawCell(app, boardLeft, boardTop, boardWidth, boardHeight, 
-             rows, cols, row, col): 
+             rows, cols, row, col, opacity): 
     cellLeft, cellTop = getCellLeftTop(boardLeft, boardTop, 
                                        boardWidth, boardHeight,
                                        rows, cols, row, col)
@@ -464,7 +524,7 @@ def drawCell(app, boardLeft, boardTop, boardWidth, boardHeight,
                                         app.rows, app.cols)
     drawRect(cellLeft, cellTop, cellWidth, cellHeight,
              fill=None, border='black',
-             borderWidth=app.cellBorderWidth, opacity = 20)
+             borderWidth=app.cellBorderWidth, opacity=opacity)
 
 def getCellLeftTop(boardLeft, boardTop, boardWidth, boardHeight, 
                    rows, cols, row, col):
@@ -502,7 +562,37 @@ def drawMonthCellWithDate(app, boardLeft, boardTop, boardWidth, boardHeight,
 def distance(x, y, a, b):
     return (((x-a)**2)+((y-b)**2))**0.5
 
-# need to be finished
+
+
+# event helper
+# get (row, col) from mouse click
+def getCell(app, x, y):
+    dx = x - app.boardLeft
+    dy = y - app.boardTop
+    cellWidth, cellHeight = getCellSize(app.internalBoardWidth, 
+                                        app.internalBoardHeight, 
+                                        app.internalRows, app.internalCols)
+    row = math.floor(dy / cellHeight)
+    col = math.floor(dx / cellWidth)
+    if (0 <= row < app.rows) and (0 <= col < app.cols):
+      return (row, col)
+    else:
+      return None
+    
+# get time from (row, col)
+def getTimeFromPosition(app):
+    pass
+
+# get time span from (row, col)
+def getTimeSpanFromPosition(app):
+    pass
+
+# get (row, col) from time
+def getPositionFromTime(app):
+    pass
+
+
+
 def getTimespan(start, end):
     pass
     # 1. both start and end are am
@@ -566,6 +656,13 @@ def createButtonFunction(app):
 
 def closeCreateButton(app):
     app.drawPopUpWindow = False
+
+def autoScheduleFunction(app):
+    if app.drawAutoScheduleWindow == False:
+        app.drawAutoScheduleWindow = True
+
+def closeAutoScheduleWindow(app):
+    app.drawAutoScheduleWindow = False
 
 def main():
     # runApp(width=800, height=800)
