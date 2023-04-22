@@ -70,7 +70,7 @@ class Event:
         self.width = 50
     
     def __repr__(self):
-        return f'{self.title} is from {self.start} to {self.end}.'
+        return (f'{self.title} is from {self.start} to {self.end}.')
     
     def __eq__(self, other):
         if not isinstance(other, Event):
@@ -96,9 +96,16 @@ class Event:
     def changeTitle(self, title):
         self.title = title
 
-    def draw(self):
+    def draw(self,app):
         # row, col provided
         # need: cellLeft, cellTop, cellWidth, cellHeight
+        rowFirst, colFirst = self.cellList[0]
+        cellLeftFirst, cellTopFirst = getCellLeftTop(app.boardLeft, app.boardTop,
+                                                     app.boardWidth, app.boardHeight,
+                                                     app.internalRows, app.internalCols,
+                                                     rowFirst, colFirst)
+        print(cellLeftFirst, cellTopFirst)
+        print(app.title)
         for row, col in self.cellList:
             cellLeft, cellTop = getCellLeftTop(app.boardLeft, app.boardTop, 
                                                app.boardWidth, app.boardHeight,
@@ -107,8 +114,8 @@ class Event:
             cellWidth, cellHeight = getCellSize(app.boardWidth, app.boardHeight,
                                         app.internalRows, app.internalCols)
             drawRect(cellLeft, cellTop, cellWidth, cellHeight, fill=self.color)
-            drawLabel(app.title, cellLeft, cellTop, align='left-top', size=15)
-            #drawLabel(f'{app.start} - {app.end}', cellLeft, cellTop+)
+        drawLabel(app.title, cellLeftFirst, cellTopFirst, size=10, align='left-top')
+
 
 class Buttons:
     def __init__(self, message, centerX, centerY, width, height, color, size,
@@ -263,16 +270,16 @@ def onAppStart(app):
                                 app.height/4+app.height/16, app.width/16, 
                                 app.height/32, 'lavender', 30, True, True, 
                                 titleButtonFunction),
-        Buttons('Date', app.width/4+app.width/16, app.height/4+2*app.height/16,
+        Buttons('Date', app.width/4+app.width/16, app.height/4+5*app.height/32,
                 app.width/16, app.height/32, 'lavender', 30, True, True,
                 dateButtonFunction),
-        Buttons('Day', app.width/2+app.width/16, app.height/4+2*app.height/16,
+        Buttons('Day', app.width/2+app.width/20, app.height/4+5*app.height/32,
                 app.width/16, app.height/32, 'lavender', 30, True, True,
                 dayButtonFunction),
         Buttons('Start', app.width/4+app.width/16, app.height/4+4*app.height/16,
                 app.width/16, app.height/32, 'lavender', 30, True, True,
                 startButtonFunction),
-        Buttons('End', app.width/2+app.width/16, app.height/4+4*app.height/16,
+        Buttons('End', app.width/2+app.width/20, app.height/4+4*app.height/16,
                 app.width/16, app.height/32, 'lavender', 30, True, True,
                 endButtonFunction),
         Buttons('', app.width/4+app.width/8+app.width/32, app.height/4+6*app.height/16,
@@ -384,6 +391,9 @@ def weekSchedule_redrawAll(app):
     # draw internal grid
     drawInternalBoard(app)
     # draw menu
+    if app.eventList != []:
+        for event in app.eventList:
+            event.draw(app)
     drawMenuButton(app)
     if app.drawMenu == True:
         drawMenu(app)
@@ -394,9 +404,6 @@ def weekSchedule_redrawAll(app):
     drawAutoScheduleButton(app)
     if app.drawAutoScheduleWindow == True:
         drawAutoScheduleWindow(app)
-    if app.eventList != []:
-        for event in app.eventList:
-            event.draw()
     
 
 def weekSchedule_onMousePress(app, mouseX, mouseY):
@@ -432,22 +439,22 @@ def weekSchedule_onKeyPress(app, key):
             app.title += key
     elif app.typeDate == True:
         if key == 'backspace':
-            app.title = app.title[:-1]
+            app.date = app.date[:-1]
         else:
             app.date += key
     elif app.typeDay == True:
         if key == 'backspace':
-            app.title = app.title[:-1]
+            app.day = app.day[:-1]
         else:
             app.day += key
     elif app.typeStart == True:
         if key == 'backspace':
-            app.title = app.title[:-1]
+            app.start = app.start[:-1]
         else:
             app.start += key
     elif app.typeEnd == True:
         if key == 'backspace':
-            app.title = app.title[:-1]
+            app.end = app.end[:-1]
         else:
             app.end += key
 
@@ -495,35 +502,41 @@ def drawPopUpWindow(app):
     app.closeCreateButton.draw()
     for button in app.eventButtons:
         button.draw()
-    drawRect(app.width/2+app.width/16, app.height/4+app.height/16, 
-                app.width/4, app.height/32, fill='white', align='center')
-    drawLabel(app.title, app.width/2+app.width/16-app.width/8,
+    # title
+    drawRect(app.width/2+app.width/20, app.height/4+app.height/16, 
+                app.width/3, app.height/32, fill='white', align='center')
+    drawLabel(app.title, app.width/2+app.width/20-app.width/6,
                app.height/4+app.height/16,
-              fill='black', size=20, italic=True, bold=False, align='left')
-    drawRect(app.width/2-app.width/16, app.height/4+2*app.height/16,
-             app.width/16, app.height/32, fill='white', align='center')
-    drawLabel(app.date, app.width/2-app.width/8, app.height/4+2*app.height/16,
-              fill='black', size=20, italic=True, bold=False)
-    drawRect(app.width/2+app.width/8+app.width/16, app.height/4+2*app.height/16,
-             app.width/16, app.height/32, fill='white', align='center')
-    drawLabel(app.day, app.width/2+app.width/8+app.width/16, 
-              app.height/4+2*app.height/16, fill='black', size=20, 
-              italic=True, bold=False)
-    drawRect(app.width/2-app.width/8, app.height/4+4*app.height/16,
-            app.width/16, app.height/32, fill='white', align='center')
-    drawLabel(app.start, app.width/2-app.width/8, app.height/4+4*app.height/16,
-              fill='black', size=20, italic=True, bold=False)
-    drawRect(app.width/2+app.width/8+app.width/16, app.height/4+4*app.height/16,
-             app.width/16, app.height/32, fill='white', align='center')
-    drawLabel(app.end, app.width/2+app.width/8+app.width/16, 
-              app.height/4+4*app.height/16, fill='black', size=20,
-              italic=True, bold=False)
-
+              fill='black', size=15, italic=True, bold=False, align='left')
+    # date
+    drawRect(app.width/2-app.width/12, app.height/4+5*app.height/32,
+             app.width/12, app.height/32, fill='white', align='center')
+    drawLabel(app.date, app.width/2-app.width/12-app.width/24, 
+              app.height/4+5*app.height/32,
+              fill='black', size=15, italic=True, bold=False, align='left')
+    # day
+    drawRect(app.width/2+app.width/8+app.width/32, app.height/4+5*app.height/32,
+             app.width/8, app.height/32, fill='white', align='center')
+    drawLabel(app.day, app.width/2+app.width/8+app.width/32-app.width/16, 
+              app.height/4+5*app.height/32, fill='black', size=15, 
+              italic=True, bold=False, align='left')
+    # start
+    drawRect(app.width/2-app.width/12, app.height/4+4*app.height/16,
+            app.width/12, app.height/32, fill='white', align='center')
+    drawLabel(app.start, app.width/2-app.width/12-app.width/24,
+               app.height/4+4*app.height/16,
+              fill='black', size=15, italic=True, bold=False, align='left')
+    # end
+    drawRect(app.width/2+app.width/8+app.width/32, app.height/4+4*app.height/16,
+             app.width/12, app.height/32, fill='white', align='center')
+    drawLabel(app.end, app.width/2+app.width/8+app.width/32-app.width/24, 
+              app.height/4+4*app.height/16, fill='black', size=15,
+              italic=True, bold=False, align='left')
     # draw 'Color'
     drawRect(app.width/4+app.width/16, app.height/4+6*app.height/16,
-                 app.width/16, app.height/32, align='center', fill='lavender')
+                 app.width/12, app.height/32, align='center', fill='lavender')
     drawLabel('Color', app.width/4+app.width/16, app.height/4+6*app.height/16,
-              size=30, italic=True, bold=True)
+              size=15, italic=True, bold=True)
 
 # draw the 'Auto-Schedule' Button
 def drawAutoScheduleButton(app):
@@ -802,6 +815,9 @@ def getCellList(start, end, day):
     startRow = getRowFromTime(start)
     endRow = getRowFromTime(end)
     col = getColFromDay(day)
+    print(startRow)
+    print(endRow)
+    print(col)
     for i in range(startRow, endRow):
         cellList.append((i, col))
     return cellList
@@ -831,6 +847,14 @@ def resetEventInput(app):
     app.typeDay = False
     app.typeStart = False
     app.typeEnd = False
+
+def resetEventMessage(app):
+    app.title = ''
+    app.date = ''
+    app.day = ''
+    app.start = ''
+    app.end = ''
+    app.color = ''
 
 # screen setting functions
 def setWeekScheduleScreen(app):
@@ -923,25 +947,29 @@ def saveEventFunction(app):
         day = app.day
     if ((app.start != '') and (len(app.start)<=4) and
         ((app.start.isdigit()) or (':' in app.start) and (app.start.count(':')==1))
-        and (8<=int(app.start[0])<=17)):
+        and ((8<=int(app.start[0])<=9) or (10<=(int(app.start[0:2]))<=17))):
         start = app.start
     if ((app.end != '') and (len(app.end)<=4) and
         ((app.end.isdigit()) or (':' in app.end) and (app.end.count(':')==1))
-        and (9<=int(app.end[0])<=18)):
+        and ((int(app.end[0])==9) or (10<=(int(app.end[0:2]))<=18))):
         end = app.end
     if app.color != '':
         color = app.color
     if start != end != None:
         cellList = getCellList(start, end, day)
+    print(cellList)
     #if app.cellList != []:
         #cellList = app.cellList
     # create an event
     if (date != None) and (day != None) and (start != None) and (end != None):
-        Event(title, date, day, start, end, color, cellList)
+        event = Event(title, date, day, start, end, color, cellList)
     # append the event to app.eventList
-        app.eventList.append(Event)
+        app.eventList.append(event)
+        print(app.eventList)
     else:
         app.drawReminder = True
+    app.drawPopUpWindow = False
+    resetEventMessage(app)
 
 def drawReminder(app):
     drawRect(app.width/4, app.height-app.height/10, app.width/2, app.height/10,
