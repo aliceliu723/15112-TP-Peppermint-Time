@@ -102,7 +102,6 @@ class Event:
                                                row, col)
             cellWidth, cellHeight = getCellSize(app.boardWidth, app.boardHeight,
                                         app.internalRows, app.internalCols)
-            print(self.color)
             drawRect(cellLeft, cellTop, cellWidth, cellHeight, fill=self.color)
             app.board[row][col] = 'X'
         if len(self.cellList)==1:
@@ -124,7 +123,7 @@ class Event:
         cellWidth, cellHeight = getCellSize(app.boardWidth, app.boardHeight,
                                         app.internalRows, app.internalCols)
         left = cellLeftFirst
-        right = cellLeftFirst + cellWidth*(len(self.cellList))
+        right = cellLeftFirst + cellWidth
         top = cellTopFirst
         bottom = cellTopFirst + cellHeight*(len(self.cellList))
         if (left <= mouseX <= right) and (top <= mouseY <= bottom):
@@ -135,6 +134,9 @@ class Event:
             app.start = self.start
             app.end = self.end
             app.color = self.color
+        return True
+    
+    def returnSelectedEvent(self, app):
         return self
 
 class Buttons:
@@ -210,6 +212,7 @@ def onAppStart(app):
     app.typeEnd = False
     # boolean
     app.drawReminder = False
+    app.drawConflict = False
     # draw month schedule helper
     app.monthRows = 5
     app.monthCols = 7
@@ -421,6 +424,8 @@ def weekSchedule_redrawAll(app):
         drawPopUpWindow(app)
     if app.drawReminder == True:
         drawReminder(app)
+    if app.drawConflict == True:
+        drawConflict(app)
     drawAutoScheduleButton(app)
     # rn: pop up window and auto schedule window can appear at the same time (De)
     if app.drawAutoScheduleWindow == True:
@@ -444,24 +449,25 @@ def weekSchedule_onMousePress(app, mouseX, mouseY):
     # auto-schedule & window
     app.autoScheduleButton.checkForPress(app, mouseX, mouseY)
     if app.drawAutoScheduleWindow == True:
-        app.closeAutoSchedule.checkForPress(app, mouseX, mouseY)
+        if (app.closeAutoSchedule.checkForPress(app, mouseX, mouseY)==True):
+            return
     # creating event
     for button in app.eventButtons:
         if (button.checkForPress(app, mouseX, mouseY)==True):
             return
     # edit event
-    if (app.drawPopUpWindow == False) and (app.drawAutoScheduleWindow == False):
-        for event in app.eventList:
-            app.selectedEvent = event.checkForPress(app, mouseX, mouseY)
+    for event in app.eventList:
+            if ((app.drawPopUpWindow == False) and 
+                (app.drawAutoScheduleWindow == False) and
+                (event.checkForPress(app, mouseX, mouseY) == True)):
+                app.selectedEvent = event.returnSelectedEvent(app)
     # click an empty time to create event
     if (app.drawPopUpWindow == False) and (app.drawAutoScheduleWindow == False):
         selectedCell = getCell(app, mouseX, mouseY)
-        print(selectedCell)
         if selectedCell != None:
             row, col = selectedCell
             # check if this row & col has an event on or not:
             if ((app.board[row][col] == None) and (app.drawPopUpWindow == False)):
-                print("opened")
                 app.drawPopUpWindow = True
                 clickTimeToCreate(app, selectedCell)
         
@@ -471,28 +477,43 @@ def weekSchedule_onKeyPress(app, key):
     if app.typeTitle == True:
         if key == 'backspace':
             app.title = app.title[:-1]
-        else:
-            app.title += key
+        elif len(app.title) < 13:
+            if key == 'space':
+                app.title = app.title + ' '
+            else:
+                app.title += key
     elif app.typeDate == True:
         if key == 'backspace':
             app.date = app.date[:-1]
-        else:
-            app.date += key
+        elif len(app.date) < 2:
+            if key == 'space':
+                app.date = app.title + ' '
+            else:
+                app.date += key
     elif app.typeDay == True:
         if key == 'backspace':
             app.day = app.day[:-1]
-        else:
-            app.day += key
+        elif len(app.day) < 12:
+            if key == 'space':
+                app.day = app.title + ' '
+            else:
+                app.day += key
     elif app.typeStart == True:
         if key == 'backspace':
             app.start = app.start[:-1]
-        else:
-            app.start += key
+        elif len(app.start) < 5:
+            if key == 'space':
+                app.start = app.title + ' '
+            else:
+                app.start += key
     elif app.typeEnd == True:
         if key == 'backspace':
             app.end = app.end[:-1]
-        else:
-            app.end += key
+        elif len(app.end) < 5:
+            if key == 'space':
+                app.end = app.title + ' '
+            else:
+                app.end += key
 
 def pressDigit(app, key, message):
     if key == 'backspace' and message != '':
@@ -792,8 +813,6 @@ def getRowFromTime(time):
     hour = 8
     min = 0
     row = 0
-    print(time)
-    print(type(time))
     if ':' in time:
         after = time.find(':')
         hour = int(time[:after])
@@ -828,9 +847,6 @@ def getCellList(start, end, day):
     startRow = getRowFromTime(start)
     endRow = getRowFromTime(end)
     col = getColFromDay(day)
-    print(startRow)
-    print(endRow)
-    print(col)
     for i in range(startRow, endRow):
         cellList.append((i, col))
     return cellList
@@ -849,6 +865,7 @@ def resetEventMessage(app):
     app.start = ''
     app.end = ''
     app.color = ''
+    app.cellList = []
 
 # screen setting functions
 def setWeekScheduleScreen(app):
@@ -878,13 +895,15 @@ def menuButtonFunction(app):
 def createButtonFunction(app):
     if app.drawPopUpWindow == False:
         app.drawPopUpWindow = True
+    app.drawConflict = False
     app.drawReminder = False
     resetEventInput(app)
     resetEventMessage(app)
 
 def closeCreateButton(app):
+    app.selectedEvent = None
+    resetEventMessage(app)
     app.drawPopUpWindow = False
-    print('closed')
 
 def autoScheduleFunction(app):
     if app.drawAutoScheduleWindow == False:
@@ -931,17 +950,39 @@ def lightpinkFunction(app):
 def eventFunction(app):
     if app.drawPopUpWindow == False:
         app.drawPopUpWindow = True 
+    app.drawConflict = False
     app.drawReminder = False
+
+def checkForConflict(app, cellList):
+    if cellList != []:
+        for (row, col) in cellList:
+            if app.board[row][col] == 'X':
+                return True
+    return False
     
 def clickTimeToCreate(app, selectedCell):
+    app.selectedEvent = None
     app.day = getDayFromCol(app, selectedCell)
     app.start = getStartTimeFromRow(app, selectedCell)
+    app.drawConflict = False
     app.drawReminder = False
+
+def deleteEventFunction(app):
+    # if we know which event we are working with
+    # app.eventList.remove(event)
+    if app.selectedEvent != None:
+        app.eventList.remove(app.selectedEvent)
+    else:
+        app.drawReminder = True
+    app.selectedEvent = None
+    app.drawPopUpWindow = False
+    resetEventMessage(app)
 
 def saveEventFunction(app):
     # editing existing event
     # if we know which event we are working with:
     if app.selectedEvent != None:
+        print(app.selectedEvent)
         app.selectedEvent.changeTitle(app.title)
         app.selectedEvent.changeDate(app.date)
         app.selectedEvent.changeDay(app.day)
@@ -951,66 +992,75 @@ def saveEventFunction(app):
         app.cellList = getCellList(app.start, app.end, app.day)
         app.selectedEvent.changeCellList(app.cellList)
     # default values
-    title = '(No Title)'
-    date = None
-    day = None
-    start = None
-    # get end an hour after start
-    end = None
-    color = 'lightskyblue'
-    cellList = None
-    # check if all the attributes meet requirements
-    if (app.title != '') and (len(app.title) <= 25):
-        title = app.title
-    if ((app.date != '') and (app.date.isdigit()) and (len(app.date) <= 2) and 
-        (1<=int(app.date)<=31)):
-        date = app.date
-    if ((app.day == 'Monday')or (app.day == 'Tuesday') or (app.day == 'Wednesday')
-        or (app.day == 'Thursday') or (app.day == 'Friday') or 
-        (app.day == 'Saturday') or (app.day == 'Sunday')):
-        day = app.day
-    if ((app.start != '') and (1<=len(app.start)<=5)):
-        if (app.start.isdigit()) and (8 <= int(app.start) <= 17):
-            start = app.start
-        elif (':' in app.start) and (app.start.count(':')==1):
-            if (8<=int(app.start[0])<=9) or (10<=(int(app.start[0:2]))<=17):
-                index = app.start.find(':')
-                after = app.start[index+1:]
-                if ((after == '00') or (after == '15') or (after == '30') or
-                    (after == '45')):
-                    start = app.start
-    if ((app.end != '') and (1<=len(app.end)<=5)):
-        if (app.end.isdigit()) and (8 <= int(app.end) <= 18):
-            end = app.end
-        elif (':' in app.end) and (app.end.count(':')==1):
-            if (8<=int(app.end[0])<=9) or (10<=(int(app.end[0:2]))<=18):
-                index = app.end.find(':')
-                after = app.end[index+1:]
-                if ((after == '00') or (after == '15') or (after == '30') or
-                    (after == '45')):
-                    end = app.end
-    if app.color != '':
-        color = app.color
-    if start != end != None:
-        cellList = getCellList(start, end, day)
-    print(cellList)
-    # create an event
-    if ((date != None) and (day != None) and (start != None) and (end != None)
-        and (color != None)):
-        event = Event(title, date, day, start, end, color, cellList, eventFunction)
-    # append the event to app.eventList
-        print(event)
-        app.eventList.append(event)
-        print(app.eventList)
     else:
-        app.drawReminder = True
+        title = '(No Title)'
+        date = None
+        day = None
+        start = None
+        # get end an hour after start
+        end = None
+        color = 'lightskyblue'
+        cellList = []
+        # check if all the attributes meet requirements
+        if (app.title != '') and (len(app.title) <= 25):
+            title = app.title
+        if ((app.date != '') and (app.date.isdigit()) and (len(app.date) <= 2) and 
+            (1<=int(app.date)<=31)):
+            date = app.date
+        if ((app.day == 'Monday')or (app.day == 'Tuesday') or (app.day == 'Wednesday')
+            or (app.day == 'Thursday') or (app.day == 'Friday') or 
+            (app.day == 'Saturday') or (app.day == 'Sunday')):
+            day = app.day
+        if ((app.start != '') and (1<=len(app.start)<=5)):
+            if (app.start.isdigit()) and (8 <= int(app.start) <= 17):
+                start = app.start
+            elif (':' in app.start) and (app.start.count(':')==1):
+                if (8<=int(app.start[0])<=9) or (10<=(int(app.start[0:2]))<=17):
+                    index = app.start.find(':')
+                    after = app.start[index+1:]
+                    if ((after == '00') or (after == '15') or (after == '30') or
+                        (after == '45')):
+                        start = app.start
+        if ((app.end != '') and (1<=len(app.end)<=5)):
+            if (app.end.isdigit()) and (8 <= int(app.end) <= 18):
+                end = app.end
+            elif (':' in app.end) and (app.end.count(':')==1):
+                if (8<=int(app.end[0])<=9) or (10<=(int(app.end[0:2]))<=18):
+                    index = app.end.find(':')
+                    after = app.end[index+1:]
+                    if ((after == '00') or (after == '15') or (after == '30') or
+                        (after == '45')):
+                        end = app.end
+        if app.color != '':
+            color = app.color
+        if (start != None) and (end != None):
+            cellList = getCellList(start, end, day)
+        # create an event
+        # conflict == True: meaning there is a conflict
+        # conflict == False: meaning there is no conflict
+        if cellList != []:
+            conflict = checkForConflict(app, cellList)
+        else:
+            conflict = False
+        if ((date != None) and (day != None) and (start != None) and (end != None)
+            and (color != None) and (conflict == False)):
+            event = Event(title, date, day, start, end, color, cellList, eventFunction)
+        # append the event to app.eventList
+            app.eventList.append(event)
+        elif conflict == True:
+            app.drawConflict = True
+        else:
+            app.drawReminder = True
+    app.selectedEvent = None
     app.drawPopUpWindow = False
     resetEventMessage(app)
 
-def deleteEventFunction(app):
-    pass
-    # if we know which event we are working with
-    # app.eventList.remove(event)
+def drawConflict(app):
+    drawRect(app.width/4-app.width/16, app.height-app.height/12, 
+             app.width/2+app.width/8, app.height/12,
+             fill='mediumpurple', borderWidth=3, border='slateblue')
+    drawLabel('There is a conflict in existing events!', app.width/2, 
+              app.height-app.height/24, size=20)
 
 def drawReminder(app):
     drawRect(app.width/4-app.width/16, app.height-app.height/12, 
