@@ -196,6 +196,8 @@ def onAppStart(app):
     app.drawPopUpWindow = False
     app.drawAutoScheduleWindow = False
     app.selectedEvent = None
+    app.selectedCellStart = None
+    app.selectedCellEnd = None
     # event action helper
     app.selectedCell = None
     app.title = ''
@@ -213,6 +215,8 @@ def onAppStart(app):
     # boolean
     app.drawReminder = False
     app.drawConflict = False
+    app.clickTimeToCreate = False
+    app.dragTimeToCreate = False
     # draw month schedule helper
     app.monthRows = 5
     app.monthCols = 7
@@ -444,8 +448,16 @@ def weekSchedule_onMousePress(app, mouseX, mouseY):
                 app.drawMenu = False
     # create & pop up window
     app.createButton.checkForPress(app, mouseX, mouseY)
-    #if app.drawPopUpWindow == True:
-        #app.closeCreateButton.checkForPress(app, mouseX, mouseY)
+    # click an empty time to create event
+    if (app.drawPopUpWindow == False) and (app.drawAutoScheduleWindow == False):
+        app. selectedCellStart = getCell(app, mouseX, mouseY)
+        if app.selectedCellStart != None:
+            row, col = app.selectedCellStart
+            # check if this row & col has an event on or not:
+            if ((app.board[row][col] == None) and (app.drawPopUpWindow == False)):
+                app.clickTimeToCreate = True
+                #app.drawPopUpWindow = True
+                #clickTimeToCreate(app, app.selectedCellStart)
     # auto-schedule & window
     app.autoScheduleButton.checkForPress(app, mouseX, mouseY)
     if app.drawAutoScheduleWindow == True:
@@ -461,16 +473,33 @@ def weekSchedule_onMousePress(app, mouseX, mouseY):
                 (app.drawAutoScheduleWindow == False) and
                 (event.checkForPress(app, mouseX, mouseY) == True)):
                 app.selectedEvent = event.returnSelectedEvent(app)
-    # click an empty time to create event
-    if (app.drawPopUpWindow == False) and (app.drawAutoScheduleWindow == False):
-        selectedCell = getCell(app, mouseX, mouseY)
-        if selectedCell != None:
-            row, col = selectedCell
-            # check if this row & col has an event on or not:
-            if ((app.board[row][col] == None) and (app.drawPopUpWindow == False)):
-                app.drawPopUpWindow = True
-                clickTimeToCreate(app, selectedCell)
+    
         
+def weekSchedule_onMouseRelease(app, mouseX, mouseY):
+    if (app.clickTimeToCreate == True) and (app.dragTimeToCreate == False):
+        if ((app.selectedCellStart != None) and (app.selectedCellEnd != None)):
+            app.drawPopUpWindow = True
+            clickTimeToCreate(app, app.selectedCellStart, app.selectedCellEnd)
+    elif (app.dragTimeToCreate == True) and (app.clickTimeToCreate == True):
+        if ((app.selectedCellStart != None) and (app.selectedCellEnd != None)):
+            app.drawPopUpWindow = True
+            dragTimeToCreate(app, app.selectedCellStart, app.selectedCellEnd)
+
+def weekSchedule_onMouseDrag(app, mouseX, mouseY):
+    if (app.drawPopUpWindow == False) and (app.drawAutoScheduleWindow == False):
+        app.selectedCellEnd = getCell(app, mouseX, mouseY)
+        if (app.selectedCellStart != None) and (app.selectedCellEnd != None):
+            # for a drag, we need to know start cell & end cell
+            # start cell is given by onMousePress
+            # end cell is given by onMouseDrag
+            # we then need to know the cellList to check if there's conflict
+            rowStart, colStart = app.selectedCellStart
+            rowEnd, colEnd = app.selectedCellEnd
+            cellList = getCellListRowStartAndRowEnd(rowStart, rowEnd, colStart)
+            for (row, col) in cellList:
+                if ((app.board[row][col] == None) and (app.drawPopUpWindow == False)):
+                    app.dragTimeToCreate = True
+
 def weekSchedule_onKeyPress(app, key):
     if key == 'enter':
         resetEventInput(app)
@@ -515,12 +544,6 @@ def weekSchedule_onKeyPress(app, key):
             else:
                 app.end += key
 
-def pressDigit(app, key, message):
-    if key == 'backspace' and message != '':
-        message = message[:-1]
-    elif key.isdigit() and (len(message) <= 2) and (8<=int(message)<=18):
-        message += key
-    
 
 # draw menu (change gird)
 def drawMenu(app):
@@ -609,11 +632,6 @@ def drawAutoScheduleWindow(app):
     # timespan
     # week number
     # color
-
-def drawEvents(app):
-    pass   
-
-
 
 # To-Do List Screen
 def toDoList_redrawAll(app):
@@ -851,6 +869,12 @@ def getCellList(start, end, day):
         cellList.append((i, col))
     return cellList
 
+def getCellListRowStartAndRowEnd(rowStart, rowEnd, col):
+    cellList = []
+    for i in range(rowStart, rowEnd):
+        cellList.append((i, col))
+    return cellList
+
 def resetEventInput(app):
     app.typeTitle = False
     app.typeDate = False
@@ -960,12 +984,31 @@ def checkForConflict(app, cellList):
                 return True
     return False
     
-def clickTimeToCreate(app, selectedCell):
+def clickTimeToCreate(app, selectedCellStart, selectedCellEnd):
     app.selectedEvent = None
-    app.day = getDayFromCol(app, selectedCell)
-    app.start = getStartTimeFromRow(app, selectedCell)
+    app.day = getDayFromCol(app, selectedCellStart)
+    app.start = getStartTimeFromRow(app, selectedCellStart)
+    if selectedCellEnd != None:
+        app.end = getEndTimeFromRow(app, selectedCellEnd)
+    if app.end == None:
+        app.end = ''
     app.drawConflict = False
     app.drawReminder = False
+    app.selectedCellStart = None
+    app.clickTimeToCreate = False
+
+def dragTimeToCreate(app, selectedCellStart, selectedCellEnd):
+    app.selectedEvent = None
+    app.day = getDayFromCol(app, selectedCellStart)
+    app.start = getStartTimeFromRow(app, selectedCellStart)
+    app.end = getStartTimeFromRow(app, selectedCellEnd)
+    if app.end == None:
+        app.end = ''
+    app.drawConflict = False
+    app.drawReminder = False
+    app.selectedCellStart = None
+    app.selectedCellEnd = None
+    app.dragTimeToCreate = False
 
 def deleteEventFunction(app):
     # if we know which event we are working with
@@ -982,7 +1025,6 @@ def saveEventFunction(app):
     # editing existing event
     # if we know which event we are working with:
     if app.selectedEvent != None:
-        print(app.selectedEvent)
         app.selectedEvent.changeTitle(app.title)
         app.selectedEvent.changeDate(app.date)
         app.selectedEvent.changeDay(app.day)
