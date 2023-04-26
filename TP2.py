@@ -2,6 +2,7 @@ from cmu_graphics import *
 import random
 from PIL import Image
 import math
+import pygame
 
 # logistics
     # start with initial screen
@@ -38,8 +39,6 @@ import math
                 # onMouseRelease with drag
             # click "Create" to create
     # tomato clock
-
-
 
 class Event:
     def __init__(self, title, day, start, end, color, cellList, function):
@@ -95,6 +94,7 @@ class Event:
                                                      app.internalRows, app.internalCols,
                                                      rowFirst, colFirst)
         for row, col in self.cellList:
+            # citation: from CSAcademy
             cellLeft, cellTop = getCellLeftTop(app.boardLeft, app.boardTop, 
                                                app.boardWidth, app.boardHeight,
                                                app.internalRows, app.internalCols, 
@@ -115,6 +115,7 @@ class Event:
 
     def checkForPress(self, app, mouseX, mouseY):
         rowFirst, colFirst = self.cellList[0]
+        # from CSAcademy
         cellLeftFirst, cellTopFirst = getCellLeftTop(app.boardLeft, app.boardTop,
                                                      app.boardWidth, app.boardHeight,
                                                      app.internalRows, app.internalCols,
@@ -137,6 +138,7 @@ class Event:
     def returnSelectedEvent(self, app):
         return self
 
+# Got the idea of Button class from Button demo in lecture
 class Buttons:
     def __init__(self, message, centerX, centerY, width, height, color, size,
                  bold, italic, function):
@@ -167,7 +169,18 @@ class Buttons:
             return True
 
 def onAppStart(app):
+    # citation: Songting (Michael) Wang helped me with this sound feature idea
+    # code syntax learned from:
+    # https://www.pygame.org/docs/ref/mixer.html#pygame.mixer.Sound.play
+    # sound
+    pygame.mixer.init()
+    # ring tone found at:
+    # https://pixabay.com/sound-effects/search/ringtone/
+    app.sound = pygame.mixer.Sound("ringTone.mp3")
+    app.isPlaying = False
     # image
+    # https://www.vecteezy.com/vector-art/6541612-illustration-graphic-vector-
+    # of-alarm-clock-blue-wake-up-time
     app.image = Image.open('blueClock.png')
     app.image = app.image.resize((600, 600))
     app.image = CMUImage(app.image)
@@ -286,9 +299,10 @@ def onAppStart(app):
     app.instructionButton = Buttons('Instructions', 3*app.width/16, app.height/8,
                                     app.width/6, app.height/20, 'lightskyblue',
                                     30, True, True, instructionButtonFunction)
-    app.closeInstructionButton = Buttons('X', app.width/2+app.width/4,
-            app.height/2-3*app.height/32-(1/2)*3*app.height/8, app.width/32, 
-            app.height/32, 'slateblue', 30, True, False, closeInstructionFunction)
+    app.closeInstructionButton = Buttons('X', 3*app.width/4-app.width/64, 
+                                    app.height/4+app.height/64,
+                                    app.width/32, app.height/32, 'slateblue', 30,
+                                    True, False, closeInstructionFunction)
     app.createButton = Buttons('Create', app.width-app.width/8, app.height/16,
                                 app.width/10, app.height/20, 'lightskyblue', 30,
                                 True, True, createButtonFunction)
@@ -383,6 +397,7 @@ def onAppStart(app):
     app.count = 60
     app.paused = True
 
+# citation: Screen activation was from screen demo in lecture
 # Initial Screen
 def initialScreen_redrawAll(app):
     drawImage(app.image, app.width/2, app.height/2+app.height/16, align='center')
@@ -406,32 +421,45 @@ def initialScreen_onMousePress(app, mouseX, mouseY):
 
 # Instruction Page
 def drawInstructions(app):
-    app.closeInstructionButton.draw()
     # background panel
-    drawRect(app.width/2, app.height/2-3*app.height/32, app.width/2, 3*app.height/8,
-             fill='mediumpurple', borderWidth=3, border='slateblue',
+    drawRect(app.width/2, app.height/2, app.width/2, app.height/2,
+             fill='lavender', borderWidth=3, border='mediumpurple',
              align='center')
-    drawLabel("This schedule is in 15 minutes time slots.", 
-              app.width/4+app.width/32, app.height/4+app.height/32, 
+    # close button
+    app.closeInstructionButton.draw()
+    # instructions
+    drawLabel("This schedule uses military time.", 
+              app.width/4+app.width/32, app.height/4+2*app.height/32, 
+              size=15, align='left')
+    drawLabel("Events can be scheduled in 15 minutes time slots.", 
+              app.width/4+app.width/32, app.height/4+3*app.height/32,
+              size=15, align='left')
+    drawLabel("Input the day as the format shown.",
+              app.width/4+app.width/32, app.height/4+4*app.height/32,
+              size=15, align='left')
+    drawLabel("Click the button first, then type in your input.",
+              app.width/4+app.width/32, app.height/4+5*app.height/32,
               size=15, align='left')
     drawLabel("1. Creating an event:", app.width/4+app.width/32, 
-              app.height/4+2*app.height/32, size=15, align='left')
+              app.height/4+6*app.height/32, size=15, align='left')
     drawLabel("a. Click the ‘Create’ button", app.width/4+app.width/16, 
-              app.height/4+3*app.height/32, size=15, align='left')
+              app.height/4+7*app.height/32, size=15, align='left')
     drawLabel("b. Click a time.", app.width/4+app.width/16, 
-              app.height/4+4*app.height/32, size=15, align='left')
+              app.height/4+8*app.height/32, size=15, align='left')
     drawLabel("c. Drag a time-slot.", app.width/4+app.width/16, 
-              app.height/4+5*app.height/32, size=15, align='left')
+              app.height/4+9*app.height/32, size=15, align='left')
     drawLabel("2. Plan a series of events using the auto-scheduler.", 
-              app.width/4+app.width/32, app.height/4+6*app.height/32, 
+              app.width/4+app.width/32, app.height/4+10*app.height/32, 
               size=15, align='left')
     drawLabel("1. Click the 'Auto-Schedule' button.", app.width/4+app.width/16,
-              app.height/4+7*app.height/32, size=15, align='left')
-    drawLabel("2.Type in the timespan of your event as such", 
-              app.width/4+app.width/16, app.height/4+8*app.height/32,
+              app.height/4+11*app.height/32, size=15, align='left')
+    drawLabel("2.Type in the timespan of your event including", 
+              app.width/4+app.width/16, app.height/4+12*app.height/32,
               size=15, align='left')
-    drawLabel("Ex. 1h, 30min, 45min", app.width/4+3*app.width/32,
-              app.height/4+9*app.height/32, size=15, align='left')
+    drawLabel("  'h' or 'min' as such",app.width/4+3*app.width/32,
+              app.height/4+13*app.height/32, size=15, align='left')
+    drawLabel("Ex. 1h, 15min, 30min, 45min", app.width/4+3*app.width/32,
+              app.height/4+14*app.height/32, size=15, align='left')
 
 # Weekly Schedule Screen
 def weekSchedule_redrawAll(app):
@@ -504,7 +532,8 @@ def weekSchedule_onMousePress(app, mouseX, mouseY):
         app.instructionButton.checkForPress(app, mouseX, mouseY)
     if app.drawInstructions == True:
         app.closeInstructionButton.checkForPress(app, mouseX, mouseY)
-    # create & pop up window
+        return
+    # create button check for press
     if ((app.drawAutoScheduleWindow == False) and (app.drawInstructions == False)):
         app.createButton.checkForPress(app, mouseX, mouseY)
     # click an empty time to create event
@@ -813,41 +842,6 @@ def drawAutoScheduleWindow(app):
     drawLabel(app.colorAutoSchedule, app.width/2, app.height/4+10*app.height/32,
               align='center', fill='black', size=12, italic=True, bold=True)
 
-# To-Do List Screen
-def toDoList_redrawAll(app):
-    drawLabel('To Do List', app.width/2, app.height/8, fill='skyblue', 
-              size=30, italic=True, bold=True)
-    drawMenuButton(app)
-    if app.drawMenu == True:
-        drawMenu(app)
-
-def toDoList_onMousePress(app, mouseX, mouseY):
-    # menu
-    app.menuButton.checkForPress(app, mouseX, mouseY)
-    if app.drawMenu == True:
-        for button in app.menuButtons:
-            button.checkForPress(app, mouseX, mouseY)
-            if button.checkForPress(app, mouseX, mouseY) == True:
-                app.drawMenu = False
-
-# Diary Screen
-def diary_redrawAll(app):
-    drawLabel('Diary', app.width/2, app.height/8, fill='skyblue', 
-              size=30, italic=True, bold=True)
-    # menu
-    drawMenuButton(app)
-    if app.drawMenu == True:
-        drawMenu(app)
-
-def diary_onMousePress(app, mouseX, mouseY):
-    # menu
-    app.menuButton.checkForPress(app, mouseX, mouseY)
-    if app.drawMenu == True:
-        for button in app.menuButtons:
-            button.checkForPress(app, mouseX, mouseY)
-            if button.checkForPress(app, mouseX, mouseY) == True:
-                app.drawMenu = False
-
 # Timer Screen
 def timer_redrawAll(app):
     drawLabel('Tomato Clock', app.width/2, app.height/8, fill='skyblue', 
@@ -864,10 +858,12 @@ def timer_redrawAll(app):
     drawLabel('Press r to reset the timer', app.width/2, app.height-app.height/8,
               size=22, italic=True)
 
-
 def timer_onMousePress(app, mouseX, mouseY):
     # menu
     app.menuButton.checkForPress(app, mouseX, mouseY)
+    if app.isPlaying: 
+        app.sound.stop() 
+        app.isPlaying = False
     if app.drawMenu == True:
         for button in app.menuButtons:
             button.checkForPress(app, mouseX, mouseY)
@@ -875,6 +871,9 @@ def timer_onMousePress(app, mouseX, mouseY):
                 app.drawMenu = False
 
 def timer_onKeyPress(app, key):
+    if app.isPlaying: 
+        app.sound.stop() 
+        app.isPlaying = False
     if key == 'r':
         app.count = 60
         app.paused = True
@@ -889,10 +888,13 @@ def timer_onStep(app):
     if app.count == 0:
         app.count = 60
         app.paused = True
+        app.isPlaying = True
+        app.sound.play(-1) 
 
 ###############################################################################
 # general helper functions
-# draw
+# draw grid using 2d list
+# citation: copied code from CSAcademy
 def drawBoard(app):
     for row in range(app.rows):
         for col in range(app.cols):
@@ -905,18 +907,6 @@ def drawBoardBorder(app):
            fill=None, border='black',
            borderWidth=2*app.cellBorderWidth, opacity = 20)
 
-def drawMonthBoard(app):
-    for row in range(app.monthRows):
-        for col in range(app.monthCols):
-            drawMonthCellWithDate(app, app.monthBoardLeft, app.monthBoardTop, 
-                     app.monthBoardWidth, app.monthBoardHeight, app.monthRows,
-                     app.monthCols, row, col)
-
-def drawMonthBoardBorder(app):
-    drawRect(app.monthBoardLeft, app.monthBoardTop, app.monthBoardWidth,
-             app.monthBoardHeight, fill=None, border='black', 
-             borderWidth=2*app.monthCellBorderWidth, opacity=20)
-
 def drawInternalBoard(app):
     for row in range(app.internalRows):
         for col in range(app.internalCols):
@@ -925,6 +915,7 @@ def drawInternalBoard(app):
                      app.internalRows, app.internalCols, row, col, 0)
 
 # helper of helper functions
+# citation: copied code from CSAcademy and then modified
 def drawCell(app, boardLeft, boardTop, boardWidth, boardHeight, 
              rows, cols, row, col, opacity): 
     cellLeft, cellTop = getCellLeftTop(boardLeft, boardTop, 
@@ -936,6 +927,7 @@ def drawCell(app, boardLeft, boardTop, boardWidth, boardHeight,
              fill=None, border='black',
              borderWidth=app.cellBorderWidth, opacity=opacity)
 
+# citation: copied code from CSAcademy and then modified
 def getCellLeftTop(boardLeft, boardTop, boardWidth, boardHeight, 
                    rows, cols, row, col):
     cellWidth, cellHeight = getCellSize(boardWidth, boardHeight,
@@ -944,6 +936,7 @@ def getCellLeftTop(boardLeft, boardTop, boardWidth, boardHeight,
     cellTop = boardTop + row * cellHeight
     return (cellLeft, cellTop)
 
+# citation: copied code from CSAcademy and then modified
 def getCellSize(boardWidth, boardHeight, rows, cols):
     cellWidth = boardWidth / cols
     cellHeight = boardHeight / rows
@@ -967,9 +960,6 @@ def drawMonthCellWithDate(app, boardLeft, boardTop, boardWidth, boardHeight,
     drawLabel(f'{getCellDate(app, row, col)}', cellLeft+app.width/160, 
               cellTop+app.width/160, 
               align='left-top', size=10, italic=True)
-
-def distance(x, y, a, b):
-    return (((x-a)**2)+((y-b)**2))**0.5
 
 ################################################################################
 # event helper
@@ -1202,6 +1192,7 @@ def paleturquoiseFunction(app):
 def lightpinkFunction(app):
     app.color = 'lightpink'
 
+################################################################################
 # auto-schedule button functions
 def autoScheduleFunction(app):
     if app.drawAutoScheduleWindow == False:
@@ -1262,6 +1253,7 @@ def paleturquoiseAutoScheduleFunction(app):
 def lightpinkAutoScheduleFunction(app):
     app.colorAutoSchedule = 'lightpink'
 
+# Auto-Schedule Action
 def saveAutoScheduleFunction(app):
     # default value
     title = '(No Title)'
@@ -1319,14 +1311,11 @@ def saveAutoScheduleFunction(app):
     if ((start != None) and (end != None) and (preferredDay != None) and
         (cellListLength != None)):
         rawCellListList = getRawCellListList(start, end, preferredDay,cellListLength)
-        print(rawCellListList)
     if (rawCellListList != None) and (number != None):
         cellListList = autoScheduleBacktracking(app, rawCellListList, [], number)
-        print(cellListList)
         if (cellListList != []) and (cellListList != None):
             for cellList in cellListList:
                 if cellList != []:
-                    print('sb')
                     start = getStartTimeFromRow(app, cellList[0])
                     end = getEndTimeFromRow(app, cellList[-1])
                     if ((title != None) and (preferredDay != None) and
@@ -1382,6 +1371,7 @@ def getRawCellListList(start, end, day, cellListLength):
     col = getColFromDay(day)
     for i in range(rowStart, rowEnd):
         cellList = []
+        # citation: this follow one line was inspired by Jackie Wang
         if(i + cellListLength <= rowEnd):
             for k in range(cellListLength):
                 cellList.append(((i+k), col))
@@ -1465,6 +1455,7 @@ def deleteEventFunction(app):
     app.drawPopUpWindow = False
     resetEventMessage(app)
 
+# Create event actions
 def saveEventFunction(app):
     # editing existing event
     # if we know which event we are working with:
@@ -1603,6 +1594,7 @@ def saveEventFunction(app):
     app.drawPopUpWindow = False
     resetEventMessage(app)
 
+# reminder pop up windows in the bottom
 def drawConflict(app):
     drawRect(app.width/4-app.width/16, app.height-app.height/12, 
              app.width/2+app.width/8, app.height/12,
