@@ -1,6 +1,8 @@
 from cmu_graphics import *
 import random
 import math
+from PIL import Image
+import os, pathlib
 
 # logistics
     # start with initial screen
@@ -36,9 +38,11 @@ import math
                 # onMouseDrag
                 # onMouseRelease with drag
             # click "Create" to create
-    # to do list
-    # diary
     # tomato clock
+
+def openImage(fileName):
+    image = Image.open(os.path.join(pathlib.Path(__file__).parent,fileName))
+    return image.convert('RGBA')
 
 class Event:
     def __init__(self, title, day, start, end, color, cellList, function):
@@ -164,8 +168,9 @@ class Buttons:
             self.function(app)
             return True
 
-
 def onAppStart(app):
+    # image
+    app.image = CMUImage(openImage('blueClock.png'))
     # mouse
     app.x = 0
     app.y = 0
@@ -209,6 +214,7 @@ def onAppStart(app):
     app.typeDay = False
     app.typeStart = False
     app.typeEnd = False
+    app.borderColor = 'white'
     # auto-schedule action helper
     app.titleAutoSchedule = ''
     app.preferredDayAutoSchedule = ''
@@ -224,6 +230,7 @@ def onAppStart(app):
     app.typeTimespanAutoSchedule = False
     app.typeNumberAutoSchedule = False
     # boolean
+    app.drawInstructions = False
     app.drawReminder = False
     app.drawConflict = False
     app.drawNoEvent = False
@@ -247,16 +254,12 @@ def onAppStart(app):
     # event helper
     app.board = [[None]*app.internalCols for row in range(app.internalRows)]
     # buttons
-    app.initialButtons = [Buttons('Schedule', app.width/2, app.height/2, 
+    app.initialButtons = [Buttons('Schedule', app.width/4, 
+                                  app.height/2+2*3*app.height/16, 
                                   app.height/4, app.height/16, 'lightskyblue', 
                                   25, True, True, setWeekScheduleScreen),
-        Buttons('To Do List', app.width/2, app.height/2+2*app.height/16,
-                app.height/4, app.height/16, 'lightskyblue', 25, True,
-                True, setToDoListScreen),
-        Buttons('Diary', app.width/2, app.height/2+2*2*app.height/16, 
-                app.height/4, app.height/16, 'lightskyblue', 25, True, True, 
-                setDiaryScreen),
-        Buttons('Tomato Clock', app.width/2, app.height/2+2*3*app.height/16,
+        Buttons('Tomato Clock', app.width/2+2*app.width/8, 
+                app.height/2+2*3*app.height/16,
                 app.height/4, app.height/16, 'lightskyblue', 25, True, True,
                 setTimerScreen)
     ]
@@ -264,19 +267,16 @@ def onAppStart(app):
                              2*app.height/32, 'lightskyblue', 25, True, True,
                              menuButtonFunction)
     app.menuButtons = [Buttons('Week Schedule', app.width/6, 
-                               app.height/13+app.height/32, app.width/6, 
+                               app.height/13+3*app.height/64, app.width/6, 
                                app.height/20, 'lightskyblue', 15, True, True, 
                                setWeekScheduleScreen),
-        Buttons('To Do List', app.width/6, app.height/13+2*app.height/32+app.height/20,
+        Buttons('Tomato Clock', app.width/6, app.height/13+5*app.height/64+app.height/20,
                 app.width/6, app.height/20, 'lightskyblue', 15, True, True,
-                setToDoListScreen),
-        Buttons('Diary', app.width/6, app.height/13+3*app.height/32+2*app.height/20,
-                app.width/6, app.height/20, 'lightskyblue', 15, True, True,
-                setDiaryScreen),
-        Buttons('Tomato Clock', app.width/6, app.height/13+4*app.height/32+3*app.height/20,
-                app.width/6, app.height/20, 'lightskyblue', 15, True, True,
-                setToDoListScreen)
+                setTimerScreen)
     ]
+    app.instructionButton = Buttons('Instructions', 3*app.width/16, app.height/8,
+                                    app.width/6, app.height/20, 'lightskyblue',
+                                    30, True, True, instructionButtonFunction)
     app.createButton = Buttons('Create', app.width-app.width/8, app.height/16,
                                 app.width/10, app.height/20, 'lightskyblue', 30,
                                 True, True, createButtonFunction)
@@ -366,11 +366,16 @@ def onAppStart(app):
                 app.height/2+app.height/8+app.height/16, app.width/16, 
                 app.width/32, 'lavender', 20, True, True, saveAutoScheduleFunction)   
     ]
+    # timer helpers
+    app.stepsPerSecond = 1
+    app.count = 60
+    app.paused = True
 
 # Initial Screen
 def initialScreen_redrawAll(app):
     drawLabel('Peppermint Time', app.width/2, app.height/4, fill='royalblue',
               size=45, italic=True, bold=True)
+    drawImage(app.image, app.width/4, app.height/4)
     drawMenuButton(app)
     for button in app.initialButtons:
         button.draw()
@@ -387,35 +392,9 @@ def initialScreen_onMousePress(app, mouseX, mouseY):
             if button.checkForPress(app, mouseX, mouseY) == True:
                 app.drawMenu = False
 
-# Month Schedule Screen
-def monthSchedule_redrawAll(app):
-    # drawTitle
-    drawLabel('Month Schedule', app.width/2, app.height/8, fill='skyblue', 
-              size=30, italic=True, bold=True)
-    # draw panel with date
-    drawMonthBoard(app)
-    drawMonthBoardBorder(app)
-    # draw menu
-    drawMenuButton(app)
-    # draw create button
-    #drawCreateButton(app)
-    if app.drawMenu == True:
-        drawMenu(app)
-    drawCreateButton(app)    
-    if app.drawPopUpWindow == True:
-        drawPopUpWindow(app)
-
-def monthSchedule_onMousePress(app, mouseX, mouseY):
-    app.menuButton.checkForPress(app, mouseX, mouseY)
-    if app.drawMenu == True:
-        for button in app.menuButtons:
-            button.checkForPress(app, mouseX, mouseY)
-            if button.checkForPress(app, mouseX, mouseY) == True:
-                app.drawMenu = False
-    app.createButton.checkForPress(app, mouseX, mouseY)
-    for button in app.eventButtons:
-        button.checkForPress(app, mouseX, mouseY)
-
+# Instruction Page
+def drawInstructions(app):
+    pass
 
 # Weekly Schedule Screen
 def weekSchedule_redrawAll(app):
@@ -443,6 +422,10 @@ def weekSchedule_redrawAll(app):
     if app.eventList != []:
         for event in app.eventList:
             event.draw(app)
+    # draw instruction page
+    drawInstructionButton(app)
+    if app.drawInstructions == True:
+        drawInstructions(app)
     # draw create button & pop up window
     drawCreateButton(app)
     if (app.drawPopUpWindow == True):
@@ -480,10 +463,11 @@ def weekSchedule_onMousePress(app, mouseX, mouseY):
             if button.checkForPress(app, mouseX, mouseY) == True:
                 app.drawMenu = False
     # create & pop up window
-    if (app.drawAutoScheduleWindow == False):
+    if ((app.drawAutoScheduleWindow == False) and (app.drawInstructions == False)):
         app.createButton.checkForPress(app, mouseX, mouseY)
     # click an empty time to create event
-    if (app.drawPopUpWindow == False) and (app.drawAutoScheduleWindow == False):
+    if ((app.drawPopUpWindow == False) and (app.drawAutoScheduleWindow == False)
+        and (app.drawInstructions == False)):
         app. selectedCellStart = getCell(app, mouseX, mouseY)
         if app.selectedCellStart != None:
             row, col = app.selectedCellStart
@@ -491,7 +475,7 @@ def weekSchedule_onMousePress(app, mouseX, mouseY):
             if ((app.board[row][col] == None) and (app.drawPopUpWindow == False)):
                 app.clickTimeToCreate = True
     # auto-schedule & window
-    if app.drawPopUpWindow == False:
+    if ((app.drawPopUpWindow == False) and (app.drawInstructions == False)):
         app.autoScheduleButton.checkForPress(app, mouseX, mouseY)
     if app.drawAutoScheduleWindow == True:
         for button in app.backtrackingButtons:
@@ -506,6 +490,7 @@ def weekSchedule_onMousePress(app, mouseX, mouseY):
     for event in app.eventList:
             if ((app.drawPopUpWindow == False) and 
                 (app.drawAutoScheduleWindow == False) and
+                (app.drawInstructions == False) and
                 (event.checkForPress(app, mouseX, mouseY) == True)):
                 app.selectedEvent = event.returnSelectedEvent(app)
         
@@ -524,7 +509,8 @@ def weekSchedule_onMouseRelease(app, mouseX, mouseY):
 def weekSchedule_onMouseDrag(app, mouseX, mouseY):
     app.x = mouseX
     app.y = mouseY
-    if (app.drawPopUpWindow == False) and (app.drawAutoScheduleWindow == False):
+    if ((app.drawPopUpWindow == False) and (app.drawAutoScheduleWindow == False)
+        and (app.drawInstructions == False)):
         app.selectedCellEnd = getCell(app, mouseX, mouseY)
         if (app.selectedCellStart != None) and (app.selectedCellEnd != None):
             # for a drag, we need to know start cell & end cell
@@ -632,7 +618,7 @@ def weekSchedule_onKeyPress(app, key):
 # draw menu (change gird)
 def drawMenu(app):
     # background
-    drawRect(0, 0, app.width/3, 7*app.height/16, fill='lavender')
+    drawRect(0, 0, app.width/3, 5*app.height/16, fill='lavender')
     # buttons
     for button in app.menuButtons:
         button.draw()
@@ -640,6 +626,10 @@ def drawMenu(app):
 
 def drawMenuButton(app):
     app.menuButton.draw()
+
+# draw the 'Instructions' Button
+def drawInstructionButton(app):
+    app.instructionButton.draw()
 
 # draw the 'Create' button
 def drawCreateButton(app):
@@ -665,32 +655,36 @@ def drawPopUpWindow(app):
         button.draw()
     # title
     drawRect(app.width/2+app.width/20, app.height/4+app.height/16, 
-                app.width/3, app.height/32, fill='white', align='center')
-    drawLabel(app.title, app.width/2+app.width/20-app.width/6,
+                app.width/3, app.height/32, fill='white', align='center',
+                border=app.titleBorderColor)
+    drawLabel(app.title, app.width/2+app.width/20-app.width/6+app.width/300,
                app.height/4+app.height/16,
               fill='black', size=15, italic=True, bold=False, align='left')
     # day
     drawRect(app.width/2+app.width/8, app.height/4+9*app.height/64,
-             app.width/8, app.height/32, fill='white', align='center')
-    drawLabel(app.day, app.width/2+app.width/8-app.width/16, 
+             app.width/8, app.height/32, fill='white', align='center',
+             border=app.dayBorderColor)
+    drawLabel(app.day, app.width/2+app.width/8-app.width/16+app.width/30, 
               app.height/4+9*app.height/64, fill='black', size=15, 
               italic=True, bold=False, align='left')
     # start
     drawRect(app.width/2-app.width/12, app.height/4+7*app.height/32,
-            app.width/12, app.height/32, fill='white', align='center')
-    drawLabel(app.start, app.width/2-app.width/12-app.width/24,
+            app.width/12, app.height/32, fill='white', align='center',
+            border=app.startBorderColor)
+    drawLabel(app.start, app.width/2-app.width/12-app.width/24+app.width/300,
                app.height/4+7*app.height/32,
               fill='black', size=15, italic=True, bold=False, align='left')
     # end
     drawRect(app.width/2+app.width/8+app.width/32, app.height/4+7*app.height/32,
-             app.width/12, app.height/32, fill='white', align='center')
-    drawLabel(app.end, app.width/2+app.width/8+app.width/32-app.width/24, 
+             app.width/12, app.height/32, fill='white', align='center',
+             border=app.endBorderColor)
+    drawLabel(app.end, app.width/2+app.width/8+app.width/32-app.width/24+app.width/300, 
               app.height/4+7*app.height/32, fill='black', size=15,
               italic=True, bold=False, align='left')
     # draw 'Color'
-    drawRect(app.width/4+app.width/16, app.height/4+10*app.height/32,
+    drawRect(app.width/4+app.width/16, app.height/4+12*app.height/32,
                  app.width/12, app.height/32, align='center', fill='lavender')
-    drawLabel('Color', app.width/4+app.width/16, app.height/4+10*app.height/32,
+    drawLabel('Color', app.width/4+app.width/16, app.height/4+12*app.height/32,
               size=15, italic=True, bold=True)
     drawRect(app.width/2, app.height/4+10*app.height/32, app.width/8, 
              app.height/32, fill='white', align='center')
@@ -713,43 +707,55 @@ def drawAutoScheduleWindow(app):
     # title
         # simply draw this on each event (as a class attribute)
     drawRect(app.width/2+app.width/20, app.height/4+app.height/16, 
-             app.width/3, app.height/32, fill='white', align='center')
-    drawLabel(app.titleAutoSchedule, app.width/2+app.width/20-app.width/6,
+             app.width/3, app.height/32, fill='white', align='center',
+             border=app.titleAutoScheduleBorderColor)
+    drawLabel(app.titleAutoSchedule, 
+              app.width/2+app.width/20-app.width/6+app.width/300,
               app.height/4+app.height/16,
               fill='black', size=15, italic=True, bold=False, align='left')
     # prefered day of the week?
         # col of all the event
     drawRect(app.width/2+app.width/32, app.height/4+4*app.height/32,
-             app.width/6, app.height/32, fill='white', align='center')
-    drawLabel(app.preferredDayAutoSchedule, app.width/2+app.width/32-app.width/12, 
+             app.width/6, app.height/32, fill='white', align='center',
+             border=app.preferredDayAutoScheduleBorderColor)
+    drawLabel(app.preferredDayAutoSchedule, 
+              app.width/2+app.width/32-app.width/12+app.width/300, 
               app.height/4+4*app.height/32, fill='black', size=15, 
               italic=True, bold=False, align='left')
     # prefered earliest start time
         # create cellList start from this time(row)
     drawRect(app.width/2-app.width/12, app.height/4+6*app.height/32,
-             app.width/12, app.height/32, fill='white', align='center')
-    drawLabel(app.startAutoSchedule, app.width/2-app.width/12-app.width/24,
+             app.width/12, app.height/32, fill='white', align='center',
+             border=app.startAutoScheduleBorderColor)
+    drawLabel(app.startAutoSchedule, 
+              app.width/2-app.width/12-app.width/24+app.width/300,
               app.height/4+6*app.height/32,
               fill='black', size=15, italic=True, bold=False, align='left')
     # prefered latest end time
         # create cellList end by this time(row-1)
     drawRect(app.width/2+app.width/8+app.width/32, app.height/4+6*app.height/32,
-             app.width/12, app.height/32, fill='white', align='center')
-    drawLabel(app.endAutoSchedule, app.width/2+app.width/8+app.width/32-app.width/24, 
+             app.width/12, app.height/32, fill='white', align='center',
+             border=app.endAutoScheduleBorderColor)
+    drawLabel(app.endAutoSchedule, 
+              app.width/2+app.width/8+app.width/32-app.width/24+app.width/300, 
               app.height/4+6*app.height/32, fill='black', size=15,
               italic=True, bold=False, align='left')
     # timespan
         # len(cellList)
     drawRect(app.width/2-app.width/16, app.height/4+8*app.height/32, app.width/12,
-             app.height/32, fill='white', align='center')
-    drawLabel(app.timespanAutoSchedule, app.width/2-app.width/16-app.width/24, 
+             app.height/32, fill='white', align='center',
+             border=app.timespanAutoScheduleBorderColor)
+    drawLabel(app.timespanAutoSchedule, 
+              app.width/2-app.width/16-app.width/24+app.width/300, 
               app.height/4+8*app.height/32, fill='black', size=15, italic=True,
               bold=False, align='left')
     # how many of this event?
         # len(cellListList) which is a 2d list
     drawRect(app.width/2+app.width/8+app.width/20, app.height/4+8*app.height/32, 
-             app.width/12, app.height/32, fill='white', align='center')
-    drawLabel(app.numberAutoSchedule, app.width/2+app.width/8+app.width/20-app.width/24,
+             app.width/12, app.height/32, fill='white', align='center',
+             border=app.numberAutoScheduleBorderColor)
+    drawLabel(app.numberAutoSchedule, 
+              app.width/2+app.width/8+app.width/20-app.width/24+app.width/300,
               app.height/4+8*app.height/32, fill='black', size=15, italic=True,
               bold=False, align='left')
     # rest time?
@@ -807,6 +813,15 @@ def timer_redrawAll(app):
     drawMenuButton(app)
     if app.drawMenu == True:
         drawMenu(app)
+    drawLabel(app.count, app.width/2, app.height/2, fill='lightskyblue', 
+              size=50, italic=True, bold=True)
+    drawLabel('Press s to start the timer', app.width/2, app.height-app.height/4, 
+              size=22, italic=True)
+    drawLabel('Press p to pause the timer', app.width/2, app.height-3*app.height/16,
+              size=22, italic=True)
+    drawLabel('Press r to reset the timer', app.width/2, app.height-app.height/8,
+              size=22, italic=True)
+
 
 def timer_onMousePress(app, mouseX, mouseY):
     # menu
@@ -816,6 +831,22 @@ def timer_onMousePress(app, mouseX, mouseY):
             button.checkForPress(app, mouseX, mouseY)
             if button.checkForPress(app, mouseX, mouseY) == True:
                 app.drawMenu = False
+
+def timer_onKeyPress(app, key):
+    if key == 'r':
+        app.count = 60
+        app.paused = True
+    elif key == 'p' and (app.count != 60):
+        app.paused = True if app.paused == False else False
+    elif key == 's':
+        app.paused = False
+
+def timer_onStep(app):
+    if not app.paused:
+        app.count -= 1
+    if app.count == 0:
+        app.count = 60
+        app.paused = True
 
 ###############################################################################
 # general helper functions
@@ -1015,6 +1046,10 @@ def resetEventInput(app):
     app.typeDay = False
     app.typeStart = False
     app.typeEnd = False
+    app.titleBorderColor = 'white'
+    app.dayBorderColor = 'white'
+    app.startBorderColor = 'white'
+    app.endBorderColor = 'white'
 
 def resetEventMessage(app):
     app.title = ''
@@ -1031,6 +1066,12 @@ def resetAutoScheduleInput(app):
     app.typeEndAutoSchedule = False
     app.typeTimespanAutoSchedule = False
     app.typeNumberAutoSchedule = False
+    app.titleAutoScheduleBorderColor = 'white'
+    app.preferredDayAutoScheduleBorderColor = 'white'
+    app.startAutoScheduleBorderColor = 'white'
+    app.endAutoScheduleBorderColor = 'white'
+    app.timespanAutoScheduleBorderColor = 'white'
+    app.numberAutoScheduleBorderColor = 'white'
 
 def resetAutoScheduleMessage(app):
     app.titleAutoSchedule = ''
@@ -1045,26 +1086,26 @@ def resetAutoScheduleMessage(app):
 def setWeekScheduleScreen(app):
     setActiveScreen("weekSchedule")
     app.drawPopUpWindow = False
-
-def setMonthScheduleScreen(app):
-    setActiveScreen("monthSchedule")
-    app.drawPopUpWindow = False
-
-def setToDoListScreen(app):
-    setActiveScreen("toDoList")
-    app.drawPopUpWindow = False
-
-def setDiaryScreen(app):
-    setActiveScreen("diary")
-    app.drawPopUpWindow = False
+    app.drawAutoScheduleWindow = False
+    app.drawInstructions = False
 
 def setTimerScreen(app):
     setActiveScreen("timer")
     app.drawPopUpWindow = False
+    app.drawAutoScheduleWindow = False
+    app.drawInstructions = False
 
 # menu button functions
 def menuButtonFunction(app):
     app.drawMenu = True if app.drawMenu == False else False
+
+# instructions
+def instructionButtonFunction(app):
+    if app.drawInstructions == False:
+        app.drawInstructions = True
+    app.drawConflict = False
+    app.drawReminder = False
+    app.drawNoEvent = False
 
 # 'Create' event pop up window button functions
 def createButtonFunction(app):
@@ -1084,18 +1125,22 @@ def closeCreateButton(app):
 def titleButtonFunction(app):
     resetEventInput(app)
     app.typeTitle = True
+    app.titleBorderColor = 'black'
 
 def dayButtonFunction(app):
     resetEventInput(app)
     app.typeDay = True
+    app.dayBorderColor = 'black'
 
 def startButtonFunction(app):
     resetEventInput(app)
     app.typeStart = True
+    app.startBorderColor = 'black'
 
 def endButtonFunction(app):
     resetEventInput(app)
     app.typeEnd = True
+    app.endBorderColor = 'black'
 
 def orangeredFunction(app):
     app.color = 'orangered'
@@ -1130,26 +1175,32 @@ def closeAutoScheduleWindow(app):
 def titleAutoScheduleFunction(app):
     resetAutoScheduleInput(app)
     app.typeTitleAutoSchedule = True
+    app.titleAutoScheduleBorderColor = 'black'
 
 def preferredDayAutoScheduleFunction(app):
     resetAutoScheduleInput(app)
     app.typePreferredDayAutoSchedule = True
+    app.preferredDayAutoScheduleBorderColor = 'black'
 
 def startAutoScheduleFunction(app):
     resetAutoScheduleInput(app)
     app.typeStartAutoSchedule = True
+    app.startAutoScheduleBorderColor = 'black'
 
 def endAutoScheduleFunction(app):
     resetAutoScheduleInput(app)
     app.typeEndAutoSchedule = True
+    app.endAutoScheduleBorderColor = 'black'
 
 def timespanAutoScheduleFunction(app):
     resetAutoScheduleInput(app)
     app.typeTimespanAutoSchedule = True
+    app.timespanAutoScheduleBorderColor = 'black'
 
 def numberAutoScheduleFunction(app):
     resetAutoScheduleInput(app)
     app.typeNumberAutoSchedule = True
+    app.numberAutoScheduleBorderColor = 'black'
 
 def orangeredAutoScheduleFunction(app):
     app.colorAutoSchedule = 'orangered'
