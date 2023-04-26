@@ -1515,6 +1515,8 @@ def saveEventFunction(app):
                                        app.selectedEvent.end, 
                                        app.selectedEvent.day)
             if ((app.cellList != None) and (app.cellList != [])):
+                for (row, col) in cellList:
+                    app.board[row][col] = None
                 conflict = checkForConflict(app, app.cellList)
             else:
                 conflict = False
@@ -1524,6 +1526,8 @@ def saveEventFunction(app):
                 for (row, col) in cellList:
                     app.board[row][col] = None
             elif conflict == True:
+                for (row, col) in cellList:
+                    app.board[row][col] = 'X'
                 app.drawConflict = True
                 app.selectedEvent.changeTitle(title)
                 app.selectedEvent.changeDay(day)
