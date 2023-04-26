@@ -1,8 +1,7 @@
 from cmu_graphics import *
 import random
-import math
 from PIL import Image
-import os, pathlib
+import math
 
 # logistics
     # start with initial screen
@@ -40,9 +39,7 @@ import os, pathlib
             # click "Create" to create
     # tomato clock
 
-def openImage(fileName):
-    image = Image.open(os.path.join(pathlib.Path(__file__).parent,fileName))
-    return image.convert('RGBA')
+
 
 class Event:
     def __init__(self, title, day, start, end, color, cellList, function):
@@ -63,8 +60,9 @@ class Event:
         if not isinstance(other, Event):
             return False
         else:
-            return ((self.day == self.day) and (self.start == other.start)
-                    and (self.end == other.end))
+            return ((self.title == other.title) and (self.day == self.day) 
+                    and (self.start == other.start)
+                    and (self.end == other.end) and (self.color == other.color))
         
     def __hash__(self):
         return hash(str(self))
@@ -170,7 +168,9 @@ class Buttons:
 
 def onAppStart(app):
     # image
-    app.image = CMUImage(openImage('blueClock.png'))
+    app.image = Image.open('blueClock.png')
+    app.image = app.image.resize((600, 600))
+    app.image = CMUImage(app.image)
     # mouse
     app.x = 0
     app.y = 0
@@ -214,7 +214,10 @@ def onAppStart(app):
     app.typeDay = False
     app.typeStart = False
     app.typeEnd = False
-    app.borderColor = 'white'
+    app.titleBorderColor = 'white'
+    app.dayBorderColor = 'white'
+    app.startBorderColor = 'white'
+    app.endBorderColor = 'white'
     # auto-schedule action helper
     app.titleAutoSchedule = ''
     app.preferredDayAutoSchedule = ''
@@ -229,6 +232,12 @@ def onAppStart(app):
     app.typeEndAutoSchedule = False
     app.typeTimespanAutoSchedule = False
     app.typeNumberAutoSchedule = False
+    app.titleAutoScheduleBorderColor = 'white'
+    app.preferredDayAutoScheduleBorderColor = 'white'
+    app.startAutoScheduleBorderColor = 'white'
+    app.endAutoScheduleBorderColor = 'white'
+    app.timespanAutoScheduleBorderColor = 'white'
+    app.numberAutoScheduleBorderColor = 'white'
     # boolean
     app.drawInstructions = False
     app.drawReminder = False
@@ -277,6 +286,9 @@ def onAppStart(app):
     app.instructionButton = Buttons('Instructions', 3*app.width/16, app.height/8,
                                     app.width/6, app.height/20, 'lightskyblue',
                                     30, True, True, instructionButtonFunction)
+    app.closeInstructionButton = Buttons('X', app.width/2+app.width/4,
+            app.height/2-3*app.height/32-(1/2)*3*app.height/8, app.width/32, 
+            app.height/32, 'slateblue', 30, True, False, closeInstructionFunction)
     app.createButton = Buttons('Create', app.width-app.width/8, app.height/16,
                                 app.width/10, app.height/20, 'lightskyblue', 30,
                                 True, True, createButtonFunction)
@@ -373,9 +385,9 @@ def onAppStart(app):
 
 # Initial Screen
 def initialScreen_redrawAll(app):
+    drawImage(app.image, app.width/2, app.height/2+app.height/16, align='center')
     drawLabel('Peppermint Time', app.width/2, app.height/4, fill='royalblue',
               size=45, italic=True, bold=True)
-    drawImage(app.image, app.width/4, app.height/4)
     drawMenuButton(app)
     for button in app.initialButtons:
         button.draw()
@@ -394,7 +406,32 @@ def initialScreen_onMousePress(app, mouseX, mouseY):
 
 # Instruction Page
 def drawInstructions(app):
-    pass
+    app.closeInstructionButton.draw()
+    # background panel
+    drawRect(app.width/2, app.height/2-3*app.height/32, app.width/2, 3*app.height/8,
+             fill='mediumpurple', borderWidth=3, border='slateblue',
+             align='center')
+    drawLabel("This schedule is in 15 minutes time slots.", 
+              app.width/4+app.width/32, app.height/4+app.height/32, 
+              size=15, align='left')
+    drawLabel("1. Creating an event:", app.width/4+app.width/32, 
+              app.height/4+2*app.height/32, size=15, align='left')
+    drawLabel("a. Click the ‘Create’ button", app.width/4+app.width/16, 
+              app.height/4+3*app.height/32, size=15, align='left')
+    drawLabel("b. Click a time.", app.width/4+app.width/16, 
+              app.height/4+4*app.height/32, size=15, align='left')
+    drawLabel("c. Drag a time-slot.", app.width/4+app.width/16, 
+              app.height/4+5*app.height/32, size=15, align='left')
+    drawLabel("2. Plan a series of events using the auto-scheduler.", 
+              app.width/4+app.width/32, app.height/4+6*app.height/32, 
+              size=15, align='left')
+    drawLabel("1. Click the 'Auto-Schedule' button.", app.width/4+app.width/16,
+              app.height/4+7*app.height/32, size=15, align='left')
+    drawLabel("2.Type in the timespan of your event as such", 
+              app.width/4+app.width/16, app.height/4+8*app.height/32,
+              size=15, align='left')
+    drawLabel("Ex. 1h, 30min, 45min", app.width/4+3*app.width/32,
+              app.height/4+9*app.height/32, size=15, align='left')
 
 # Weekly Schedule Screen
 def weekSchedule_redrawAll(app):
@@ -462,6 +499,11 @@ def weekSchedule_onMousePress(app, mouseX, mouseY):
             button.checkForPress(app, mouseX, mouseY)
             if button.checkForPress(app, mouseX, mouseY) == True:
                 app.drawMenu = False
+    # instructions page
+    if ((app.drawPopUpWindow == False) and (app.drawAutoScheduleWindow == False)):
+        app.instructionButton.checkForPress(app, mouseX, mouseY)
+    if app.drawInstructions == True:
+        app.closeInstructionButton.checkForPress(app, mouseX, mouseY)
     # create & pop up window
     if ((app.drawAutoScheduleWindow == False) and (app.drawInstructions == False)):
         app.createButton.checkForPress(app, mouseX, mouseY)
@@ -664,7 +706,7 @@ def drawPopUpWindow(app):
     drawRect(app.width/2+app.width/8, app.height/4+9*app.height/64,
              app.width/8, app.height/32, fill='white', align='center',
              border=app.dayBorderColor)
-    drawLabel(app.day, app.width/2+app.width/8-app.width/16+app.width/30, 
+    drawLabel(app.day, app.width/2+app.width/8-app.width/16+app.width/300, 
               app.height/4+9*app.height/64, fill='black', size=15, 
               italic=True, bold=False, align='left')
     # start
@@ -1107,6 +1149,9 @@ def instructionButtonFunction(app):
     app.drawReminder = False
     app.drawNoEvent = False
 
+def closeInstructionFunction(app):
+    app.drawInstructions = False
+
 # 'Create' event pop up window button functions
 def createButtonFunction(app):
     if app.drawPopUpWindow == False:
@@ -1274,21 +1319,25 @@ def saveAutoScheduleFunction(app):
     if ((start != None) and (end != None) and (preferredDay != None) and
         (cellListLength != None)):
         rawCellListList = getRawCellListList(start, end, preferredDay,cellListLength)
+        print(rawCellListList)
     if (rawCellListList != None) and (number != None):
         cellListList = autoScheduleBacktracking(app, rawCellListList, [], number)
-        if cellListList != []:
+        print(cellListList)
+        if (cellListList != []) and (cellListList != None):
             for cellList in cellListList:
-                rowStart, colStart = cellList[0]
-                rowEnd, colEnd = cellList[-1]
-                start = getStartTimeFromRow(app, cellList[0])
-                end = getEndTimeFromRow(app, cellList[-1])
-                if ((title != None) and (preferredDay != None) and
-                    (start != None) and (end != None) and (color != None) and 
-                    (cellList != [])):
+                if cellList != []:
+                    print('sb')
+                    start = getStartTimeFromRow(app, cellList[0])
+                    end = getEndTimeFromRow(app, cellList[-1])
+                    if ((title != None) and (preferredDay != None) and
+                        (start != None) and (end != None) and (color != None) and 
+                        (cellList != [])):
 
-                    event = Event(title, preferredDay, start, end, color, 
-                                cellList, eventFunction)
-                    app.eventList.append(event)
+                        event = Event(title, preferredDay, start, end, color, 
+                                    cellList, eventFunction)
+                        app.eventList.append(event)
+                else:
+                    app.drawNoEvent = True
         else:
             app.drawNoEvent = True
     else:
@@ -1333,9 +1382,12 @@ def getRawCellListList(start, end, day, cellListLength):
     col = getColFromDay(day)
     for i in range(rowStart, rowEnd):
         cellList = []
-        for k in range(cellListLength):
-            cellList.append(((i+k), col))
+        if(i + cellListLength <= rowEnd):
+            for k in range(cellListLength):
+                cellList.append(((i+k), col))
         rawCellListList.append(cellList)
+    while [] in rawCellListList:
+        rawCellListList.remove([])
     return rawCellListList
 
 def getCellListLengthFromTimespan(timespan):
@@ -1405,6 +1457,8 @@ def deleteEventFunction(app):
     # app.eventList.remove(event)
     if app.selectedEvent != None:
         app.eventList.remove(app.selectedEvent)
+        for (row, col) in app.selectedEvent.cellList:
+            app.board[row][col] = None
     else:
         app.drawReminder = True
     app.selectedEvent = None
@@ -1415,13 +1469,81 @@ def saveEventFunction(app):
     # editing existing event
     # if we know which event we are working with:
     if app.selectedEvent != None:
+        title = app.selectedEvent.title
+        day = app.selectedEvent.day
+        start = app.selectedEvent.start
+        end = app.selectedEvent.end
+        cellList = app.selectedEvent.cellList
         app.selectedEvent.changeTitle(app.title)
-        app.selectedEvent.changeDay(app.day)
-        app.selectedEvent.changeStart(app.start)
-        app.selectedEvent.changeEnd(app.end)
+        if ((app.day == 'Monday')or (app.day == 'Tuesday') or (app.day == 'Wednesday')
+            or (app.day == 'Thursday') or (app.day == 'Friday') or 
+            (app.day == 'Saturday') or (app.day == 'Sunday')):
+            app.selectedEvent.changeDay(app.day)
+        else:
+            app.drawReminder = True
+        if ((app.start != '') and (1<=len(app.start)<=5)):
+            if (app.start.isdigit()) and (8 <= int(app.start) <= 17):
+                app.selectedEvent.changeStart(app.start)
+            elif (':' in app.start) and (app.start.count(':')==1):
+                if (8<=int(app.start[0])<=9) or (10<=(int(app.start[0:2]))<=17):
+                    index = app.start.find(':')
+                    after = app.start[index+1:]
+                    if ((after == '') or (after == '00') or (after == '15') or 
+                        (after == '30') or (after == '45')):
+                        app.selectedEvent.changeStart(app.start)
+                    else:
+                        app.drawReminder = True
+                else:
+                    app.drawReminder = True
+            else:
+                app.drawReminder = True
+        else:
+            app.drawReminder = True
+        if ((app.end != '') and (1<=len(app.end)<=5)):
+            if (app.end.isdigit()) and (8 <= int(app.end) <= 18):
+                app.selectedEvent.changeEnd(app.end)
+            elif (':' in app.end) and (app.end.count(':')==1):
+                if (8<=int(app.end[0])<=9) or (10<=(int(app.end[0:2]))<=18):
+                    index = app.end.find(':')
+                    after = app.end[index+1:]
+                    if ((after == '') or (after == '00') or (after == '15') or 
+                        (after == '30') or (after == '45')):
+                        app.selectedEvent.changeEnd(app.end)
+                    else:
+                        app.drawReminder = True
+                else:
+                    app.drawReminder = True
+            else:
+                app.drawReminder = True
+        else:
+            app.drawReminder = True
         app.selectedEvent.changeColor(app.color)
-        app.cellList = getCellList(app.start, app.end, app.day)
-        app.selectedEvent.changeCellList(app.cellList)
+        if ((app.selectedEvent.start != None) and (app.selectedEvent.end != None) 
+            and (app.selectedEvent.day != None)):
+            app.cellList = getCellList(app.selectedEvent.start, 
+                                       app.selectedEvent.end, 
+                                       app.selectedEvent.day)
+            if ((app.cellList != None) and (app.cellList != [])):
+                conflict = checkForConflict(app, app.cellList)
+            else:
+                conflict = False
+            if ((app.cellList != None) and (app.cellList != []) 
+                and (conflict == False)):
+                app.selectedEvent.changeCellList(app.cellList)
+                for (row, col) in cellList:
+                    app.board[row][col] = None
+            elif conflict == True:
+                app.drawConflict = True
+                app.selectedEvent.changeTitle(title)
+                app.selectedEvent.changeDay(day)
+                app.selectedEvent.changeStart(start)
+                app.selectedEvent.changeEnd(end)
+            else:
+                app.drawReminder = True
+                app.selectedEvent.changeTitle(title)
+                app.selectedEvent.changeDay(day)
+                app.selectedEvent.changeStart(start)
+                app.selectedEvent.changeEnd(end)
     # default values
     else:
         title = '(No Title)'
@@ -1469,7 +1591,7 @@ def saveEventFunction(app):
         else:
             conflict = False
         if ((day != None) and (start != None) and (end != None)
-            and (color != None) and (conflict == False)):
+            and (color != None)  and (cellList != []) and (conflict == False)):
             event = Event(title, day, start, end, color, cellList, eventFunction)
         # append the event to app.eventList
             app.eventList.append(event)
